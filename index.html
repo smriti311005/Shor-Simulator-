@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Why Shor's Algorithm Breaks RSA/ECC</title>
+<style>
+:root{
+  --bg:#f7f8fb; --panel:#ffffff; --text:#12172b; --muted:#5b6178;
+  --accent:#2b4bff; --accent2:#8b5cf6; --line:#e4e6f0;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+*{box-sizing:border-box;}
+body{
+  margin:0; min-height:100%; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.55; display:flex; align-items:center; justify-content:center; padding:1.5rem;
+}
+.wrap{max-width:700px; width:100%;}
+h1{font-size:clamp(1.3rem,4vw,1.7rem); margin:0 0 .4rem; letter-spacing:-0.02em;}
+.lede{color:var(--muted); margin:0 0 1.2rem; max-width:60ch;}
+.panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:1.4rem 1.5rem;
+}
+.controls{display:flex; align-items:center; gap:.9rem; margin:.8rem 0 1.2rem; flex-wrap:wrap;}
+.controls input[type=range]{flex:1; min-width:180px; accent-color:var(--accent);}
+.controls .val{font-weight:600; min-width:90px; text-align:right;}
+svg{width:100%; height:auto; display:block;}
+.legend{display:flex; gap:1.4rem; margin-top:.6rem; font-size:.85rem; color:var(--muted); flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:.4rem;}
+.dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+.note{font-size:.82rem; color:var(--muted); margin-top:.7rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Why Shor's algorithm breaks RSA/ECC</h1>
+  <p class="lede">Drag the slider to change the key size. Classical factoring cost explodes; a quantum computer running Shor's algorithm barely notices.</p>
+  <div class="panel">
+    <div class="controls">
+      <label for="keysize" style="color:var(--muted); font-size:.88rem;">Key size (bits)</label>
+      <input type="range" id="keysize" min="256" max="4096" step="256" value="2048">
+      <span class="val" id="keysizeVal">2048 bits</span>
+    </div>
+    <svg id="shorChart" viewBox="0 0 640 260"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--accent)"></i>Classical computer (operations)</span>
+      <span><i class="dot" style="background:var(--accent2)"></i>Quantum computer, Shor's algorithm (operations)</span>
+    </div>
+    <p class="note">Illustrative model (log scale) — shape reflects the real asymmetry: classical cost grows sub-exponentially but explosively with key size, while Shor's algorithm scales polynomially.</p>
+  </div>
+</div>
+
+<script>
+const svg = document.getElementById('shorChart');
+const slider = document.getElementById('keysize');
+const val = document.getElementById('keysizeVal');
+const W=640,H=260,PAD=36;
+
+function classicalLogOps(bits){ return 0.02*Math.pow(bits,0.9); }
+function quantumLogOps(bits){ return 0.9*Math.log10(Math.pow(bits,3)+1); }
+
+function draw(bits){
+  const xs=[]; for(let b=256;b<=4096;b+=128) xs.push(b);
+  const cVals = xs.map(classicalLogOps);
+  const qVals = xs.map(quantumLogOps);
+  const maxY = Math.max(...cVals, ...qVals);
+  const x = b => PAD + (b-256)/(4096-256)*(W-2*PAD);
+  const y = v => H-PAD - (v/maxY)*(H-2*PAD);
+
+  function path(vals){
+    return xs.map((b,i)=> (i===0?'M':'L') + x(b).toFixed(1)+','+y(vals[i]).toFixed(1)).join(' ');
+  }
+  const cx = x(bits);
+  const cIdx = xs.reduce((best,b,i)=> Math.abs(b-bits)<Math.abs(xs[best]-bits)?i:best,0);
+
+  svg.innerHTML = `
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="var(--line)" stroke-width="1"/>
+    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="var(--line)" stroke-width="1"/>
+    <path d="${path(cVals)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+    <path d="${path(qVals)}" fill="none" stroke="var(--accent2)" stroke-width="2.5"/>
+    <line x1="${cx}" y1="${PAD}" x2="${cx}" y2="${H-PAD}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4"/>
+    <circle cx="${cx}" cy="${y(cVals[cIdx])}" r="4.5" fill="var(--accent)"/>
+    <circle cx="${cx}" cy="${y(qVals[cIdx])}" r="4.5" fill="var(--accent2)"/>
+    <text x="${PAD}" y="${H-10}" fill="var(--muted)" font-size="11">256 bits</text>
+    <text x="${W-PAD-60}" y="${H-10}" fill="var(--muted)" font-size="11">4096 bits</text>
+    <text x="${PAD+4}" y="${PAD+12}" fill="var(--muted)" font-size="11">more operations →</text>
+  `;
+}
+slider.addEventListener('input', ()=>{
+  val.textContent = slider.value + ' bits';
+  draw(parseInt(slider.value,10));
+});
+draw(parseInt(slider.value,10));
+</script>
+</body>
+</html>
