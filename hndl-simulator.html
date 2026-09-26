@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harvest Now, Decrypt Later: Exposure Simulator</title>
+<style>
+:root{
+  --bg:#f7f8fb; --panel:#ffffff; --text:#12172b; --muted:#5b6178;
+  --accent:#2b4bff; --accent2:#8b5cf6; --line:#e4e6f0;
+  --good:#1f9d55; --bad:#d6473e;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+*{box-sizing:border-box;}
+body{
+  margin:0; min-height:100%; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.55; display:flex; align-items:center; justify-content:center; padding:1.5rem;
+}
+.wrap{max-width:700px; width:100%;}
+h1{font-size:clamp(1.3rem,4vw,1.7rem); margin:0 0 .4rem; letter-spacing:-0.02em;}
+.lede{color:var(--muted); margin:0 0 1.2rem; max-width:60ch;}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:1.4rem 1.5rem;}
+.controls{display:flex; align-items:center; gap:1.2rem; margin:.8rem 0 1.2rem; flex-wrap:wrap;}
+.controls > div{flex:1; min-width:220px;}
+.controls label{color:var(--muted); font-size:.85rem; display:block; margin-bottom:.3rem;}
+select{width:100%; padding:.55rem .6rem; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-size:.95rem;}
+input[type=range]{width:100%; accent-color:var(--accent);}
+.range-val{text-align:right; font-weight:600; font-size:.9rem;}
+svg{width:100%; height:auto; display:block; margin-top:.6rem;}
+.result{margin-top:1.2rem; padding:1.2rem; border-radius:14px; background:#eafbf1; text-align:left;}
+.result .label{font-size:1.05rem; font-weight:700;}
+.result .desc{color:var(--muted); font-size:.9rem; margin-top:.4rem;}
+.note{font-size:.82rem; color:var(--muted); margin-top:.7rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Harvest Now, Decrypt Later: Exposure Simulator</h1>
+  <p class="lede">Pick a data type and an estimate for when large-scale quantum decryption ("Q-Day") arrives. See whether your data outlives its own secrecy.</p>
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <label for="dataType">Data type</label>
+        <select id="dataType">
+          <option value="7">Financial contract (7 yrs confidentiality)</option>
+          <option value="15">Trade secret / IP (15 yrs)</option>
+          <option value="20" selected>Medical / health record (20 yrs)</option>
+          <option value="30">Legal / litigation record (30 yrs)</option>
+          <option value="50">State / classified secret (50 yrs)</option>
+          <option value="70">Biometric / national ID (70 yrs, effectively lifetime)</option>
+        </select>
+      </div>
+      <div>
+        <label for="qday">Estimated Q-Day</label>
+        <input type="range" id="qday" min="2028" max="2045" step="1" value="2033">
+        <div class="range-val" id="qdayVal">2033</div>
+      </div>
+    </div>
+
+    <svg id="hndlTimeline" viewBox="0 0 640 130"></svg>
+
+    <div class="result" id="hndlResult">
+      <div class="label" id="hndlLabel"></div>
+      <div class="desc" id="hndlDesc"></div>
+    </div>
+    <p class="note">Q-Day is inherently uncertain — treat this as a planning aid for prioritization, not a prediction. Data harvested today is already at risk the moment Q-Day arrives, regardless of when migration starts.</p>
+  </div>
+</div>
+
+<script>
+const THIS_YEAR = 2026;
+const dataType = document.getElementById('dataType');
+const qday = document.getElementById('qday');
+const qdayVal = document.getElementById('qdayVal');
+const hndlTimeline = document.getElementById('hndlTimeline');
+const hndlLabel = document.getElementById('hndlLabel');
+const hndlDesc = document.getElementById('hndlDesc');
+const hndlResult = document.getElementById('hndlResult');
+
+function drawHNDL(years, qdayYear){
+  const endYear = THIS_YEAR + years;
+  const spanEnd = Math.max(endYear, qdayYear) + 2;
+  const spanStart = THIS_YEAR;
+  const W=640,H=130,PAD=40;
+  const x = yr => PAD + (yr-spanStart)/(spanEnd-spanStart)*(W-2*PAD);
+  const atRisk = qdayYear <= endYear;
+  const barY = 55, barH = 22;
+
+  let riskRect = '';
+  if(atRisk){
+    riskRect = `<rect x="${x(qdayYear)}" y="${barY}" width="${x(endYear)-x(qdayYear)}" height="${barH}" fill="var(--bad)" opacity="0.35"/>`;
+  }
+
+  hndlTimeline.innerHTML = `
+    <line x1="${PAD}" y1="${barY+barH+22}" x2="${W-PAD}" y2="${barY+barH+22}" stroke="var(--line)"/>
+    <rect x="${x(THIS_YEAR)}" y="${barY}" width="${x(endYear)-x(THIS_YEAR)}" height="${barH}" rx="6" fill="var(--accent)" opacity="0.28"/>
+    ${riskRect}
+    <line x1="${x(THIS_YEAR)}" y1="${barY-8}" x2="${x(THIS_YEAR)}" y2="${barY+barH+8}" stroke="var(--accent)" stroke-width="2"/>
+    <text x="${x(THIS_YEAR)}" y="${barY-14}" fill="var(--text)" font-size="11" text-anchor="middle">Today (${THIS_YEAR})</text>
+    <line x1="${x(qdayYear)}" y1="${barY-8}" x2="${x(qdayYear)}" y2="${barY+barH+8}" stroke="var(--accent2)" stroke-width="2"/>
+    <text x="${x(qdayYear)}" y="${barY-14}" fill="var(--accent2)" font-size="11" text-anchor="middle">Q-Day (${qdayYear})</text>
+    <text x="${x(endYear)}" y="${barY+barH+36}" fill="var(--muted)" font-size="11" text-anchor="middle">Secrecy needed until ${endYear}</text>
+    <line x1="${x(endYear)}" y1="${barY+barH+8}" x2="${x(endYear)}" y2="${barY+barH+22}" stroke="var(--muted)"/>
+  `;
+
+  if(atRisk){
+    hndlLabel.textContent = 'At risk';
+    hndlLabel.style.color = 'var(--bad)';
+    hndlResult.style.background = '#fdecea';
+    hndlDesc.textContent = `This data needs to stay confidential until ${endYear}, but Q-Day is estimated for ${qdayYear} — ${endYear-qdayYear} year(s) before secrecy is no longer required. Data intercepted today falls inside the exposure window.`;
+  } else {
+    hndlLabel.textContent = 'Currently low risk';
+    hndlLabel.style.color = 'var(--good)';
+    hndlResult.style.background = '#eafbf1';
+    hndlDesc.textContent = `Confidentiality is only needed until ${endYear}, which is before the ${qdayYear} Q-Day estimate. Still worth migrating early — Q-Day estimates have historically moved earlier, not later.`;
+  }
+}
+function updateHNDL(){
+  qdayVal.textContent = qday.value;
+  drawHNDL(parseInt(dataType.value,10), parseInt(qday.value,10));
+}
+dataType.addEventListener('change', updateHNDL);
+qday.addEventListener('input', updateHNDL);
+updateHNDL();
+</script>
+</body>
+</html>
